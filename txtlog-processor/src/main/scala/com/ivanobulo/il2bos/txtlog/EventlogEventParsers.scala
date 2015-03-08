@@ -4,30 +4,28 @@ import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalTime}
 import java.util.UUID
 
+import com.ivanobulo.il2bos.event._
+
 import scala.util.parsing.combinator.JavaTokenParsers
 
 class EventlogEventParsers extends JavaTokenParsers {
   lazy val gameDateFormat = DateTimeFormatter.ofPattern("yyyy.M.d")
   lazy val gameTimeFormat = DateTimeFormatter.ofPattern("HH:m:s")
 
+  // some literals
   def COMMA = ","
-
   def COLUMN = ":"
-
   def LP = "("
-
   def RP = ")"
 
   def coordinate = decimalNumber
 
-  def logItemId: Parser[String] =
-    """[A-Z][A-Za-z]+:""".r
+  def logItemId: Parser[String] = """[A-Z][A-Za-z]+:""".r
 
-  /**
-   * looks forward for end of input or next 'logItemId'
-   */
-  def allCharsBeforeNextValue:Parser[String] = new Parser[String] {
-    def isSuccess(result: ParseResult[String]) = result match {
+  def allCharsBeforeNextValue:Parser[String] = until(logItemId)
+
+  def until(p: Parser[_]) = new Parser[String] {
+    def isSuccess(result: ParseResult[_]) = result match {
       case f @ Failure(_,_) => false
       case _ => true
     }
@@ -35,25 +33,23 @@ class EventlogEventParsers extends JavaTokenParsers {
     override def apply(in: Input): ParseResult[String] = {
       val result = new StringBuilder()
       var rest = in
-      while(!(rest.atEnd || isSuccess(logItemId.apply(rest)))) {
+      while(!(rest.atEnd || isSuccess(p.apply(rest)))) {
         result.append(rest.first)
         rest = rest.rest
       }
-      Success(result.toString(), rest)
+      if (result.isEmpty) Failure("", rest) else Success(result.toString(), rest)
     }
   }
+
+  def listOfStrings:Parser[List[String]] = LP ~> repsep(until(COMMA|RP), COMMA) <~ RP
 
   def position = (LP ~> coordinate) ~ (COMMA ~> coordinate) ~ (COMMA ~> coordinate) <~ RP ^^ {
     case x ~ y ~ z => Position(x.toDouble, y.toDouble, z.toDouble)
   }
 
-  def areaBoundary = rep1sep(position, COMMA) ^^ {
-    case boundaries => Area(boundaries)
-  }
+  def areaBoundary = rep1sep(position, COMMA) ^^ { Area }
 
-  def numericId = decimalNumber ^^ {
-    _.toLong
-  }
+  def numericId = decimalNumber ^^ { _.toLong }
 
   def numericIdList: Parser[List[Long]] = rep1sep(numericId, COMMA)
 
@@ -65,9 +61,7 @@ class EventlogEventParsers extends JavaTokenParsers {
     case timeString => LocalTime.parse(timeString, gameTimeFormat)
   }
 
-  def uuid = allCharsBeforeNextValue ^^ {
-    case x => UUID.fromString(x)
-  }
+  def uuid = allCharsBeforeNextValue ^^ { UUID.fromString }
 
   def intKeyValue = (decimalNumber <~ COLUMN) ~ decimalNumber ^^ {
     case key ~ value => (key.toInt, value.toInt)
@@ -77,13 +71,9 @@ class EventlogEventParsers extends JavaTokenParsers {
     case list => list.toMap
   }
 
-  def eventTime = ("T" ~ COLUMN) ~> decimalNumber ^^ {
-    _.toLong
-  }
+  def eventTime = ("T" ~ COLUMN) ~> decimalNumber ^^ { _.toLong }
 
-  def eventType(x: Int) = ("AType" ~ COLUMN) ~> literal(x.toString) ^^ {
-    _.toLong
-  }
+  def eventType(x: Int) = ("AType" ~ COLUMN) ~> literal(x.toString) ^^ { _.toLong }
 
   def eventN[T <: LogEvent](x: Int, p: => Parser[T]) = eventType(x) ~> p
 
@@ -95,84 +85,106 @@ class EventlogEventParsers extends JavaTokenParsers {
 
   def intValue(key:String) = literal(key) ~ COLUMN ~> decimalNumber ^^ {_.toInt}
 
+  def uuidValue(key:String) = literal(key) ~ COLUMN ~> uuid
+
   def doubleValue(key:String) = literal(key) ~ COLUMN ~> decimalNumber ^^ {_.toDouble}
 
   def stringValue(key:String) = literal(key) ~ COLUMN ~> allCharsBeforeNextValue
 
+  def booleanValue(key:String) = literal(key) ~ COLUMN ~> ("0" | "1") ^^ {
+    case "0" => false
+    case _ => true
+  }
+
   def missionId = "MID" ~ COLUMN ~> opt(decimalNumber) ^^ { _.map(_.toInt) }
-
-  def gameType = intValue("GType")
-
   def counters = ("CNTRS" ~ COLUMN) ~> intMap
-
-  def mods = intValue("MODS")
-
-  def preset = intValue("PRESET")
-
-  def settingsFlags = stringValue("SETTS")
-
-  def aqmId = intValue("AQMID")
-
-  def aid = intValue("AID")
-
-  def tid = intValue("TID")
-  def plid = intValue("PLID")
-  def pid = intValue("PID")
-  def bul = intValue("BUL")
-  def sh = intValue("SH")
-  def bomb = intValue("BOMB")
-  def rct = intValue("RCT")
-
-  def ammo = stringValue("AMMO")
-
-  def damage = doubleValue("DMG")
-
   def pos = "POS" ~> position
+  def inairValue = "INAIR" ~ COLUMN ~> "\\d".r ^^ { _.toInt }
+
+  // simple values
+  def GType = intValue("GType")
+  def MODS = intValue("MODS")
+  def PRESET = intValue("PRESET")
+  def SETTS = stringValue("SETTS")
+  def AQMID = intValue("AQMID")
+  def AID = intValue("AID")
+  def TID = intValue("TID")
+  def PLID = intValue("PLID")
+  def PID = intValue("PID")
+  def BUL = intValue("BUL")
+  def SH = intValue("SH")
+  def BOMB = intValue("BOMB")
+  def RCT = intValue("RCT")
+  def COUNTRY = intValue("COUNTRY")
+  def AMMO = stringValue("AMMO")
+  def NAME = stringValue("NAME")
+  def TYPE = stringValue("TYPE")
+  def FORM = intValue("FORM")
+  def FIELD = intValue("FIELD")
+  def DMG = doubleValue("DMG")
+  def IDS_UUID =  uuidValue("IDS")
+  def LOGIN_UUID =  uuidValue("LOGIN")
+  def PARENT =  "PARENT" ~ COLUMN ~> ("-1" | decimalNumber) ^^ {
+    case "-1" => None
+    case x => Some(x.toInt)
+  }
+  def PAYLOAD =  intValue("PAYLOAD")
+  def FUEL =  doubleValue("FUEL")
+  def WM =  intValue("WM")
+  def SKIN =  "SKIN" ~ COLUMN ~> opt(allCharsBeforeNextValue)
 
   def someEvent = eventN(0, missionStart) | eventN(1, hitEvent) | eventN(2, damageEvent) | eventN(3, killEvent) |
-    eventN(4, playerAmmoEvent)
+    eventN(4, playerAmmoEvent) | eventN(5, takeoffEvent) | eventN(6, landingEvent) | /*7*/missionEndEvent | /* todo 8 */
+    eventN(9, airfieldInfoEvent) | eventN(10, playerPlaneSpawnEvent)
 
   def event:Parser[(Long, LogEvent)] = eventTime ~ someEvent ^^ {
     case time ~ e => (time, e)
   }
 
+  def missionEndEvent:Parser[MissionEndEvent] = eventType(7) ^^ {case x => MissionEndEvent()}
+
   def missionStart:Parser[LogEvent] =
-    gameDate ~ gameTime ~ missionFile ~ missionId ~ gameType ~ counters ~ settingsFlags ~ mods ~ preset ~ aqmId ^^ {
+    gameDate ~ gameTime ~ missionFile ~ missionId ~ GType ~ counters ~ SETTS ~ MODS ~ PRESET ~ AQMID ^^ {
       case date ~ time ~ map ~ mid ~ gameType ~ countryCounters ~ settingsFlags ~ mods ~ preset ~ aqmId =>
         MissionStartEvent(date, time, map, mid)
     }
 
-  def hitEvent = ammo ~ aid ~ tid ^^ {
+  def hitEvent = AMMO ~ AID ~ TID ^^ {
     case ammo ~ aid ~ tid => HitEvent(ammo, aid, tid)
   }
 
-  def damageEvent = damage ~ aid ~ tid ~ pos ^^ {
+  def damageEvent = DMG ~ AID ~ TID ~ pos ^^ {
     case damage ~ aid ~ tid ~ pos => DamageEvent(damage, aid, tid, pos)
   }
 
-  def killEvent = aid ~ tid ~ pos ^^ {
+  def killEvent = AID ~ TID ~ pos ^^ {
     case aid ~ tid ~ pos => KillEvent(aid, tid, pos)
   }
 
-  def playerAmmoEvent = plid ~ pid ~ bul ~ sh ~ bomb ~ rct ~ position ^^ {
-    case plid ~ pid ~ bul ~ sh ~ bomb ~ rct ~ position => PlayerAmmoEvent(plid, pid, bul, sh, bomb, rct, position)
+  def takeoffEvent = PID ~ pos ^^ {
+    case pid ~ position => TakeoffEvent(pid, position)
+  }
+
+  def landingEvent = PID ~ pos ^^ {
+    case pid ~ position => LandingEvent(pid, position)
+  }
+
+  def airfieldInfoEvent = (AID ~ COUNTRY ~ pos) <~ "IDS()" ^^ {
+    case aid ~ country ~ pos => AirFieldInfoEvent(aid, country, pos)
+  }
+
+  def planeArmament = BUL ~ SH ~ BOMB ~ RCT ^^ {
+    case bul ~ sh ~ bomb ~ rct => PlaneArmament(bul, sh, bomb, rct)
+  }
+
+  def playerAmmoEvent = PLID ~ PID ~ planeArmament ~ position ^^ {
+    case plid ~ pid ~ planeArmament ~ position => PlayerAmmoEvent(plid, pid, planeArmament, position)
+  }
+
+  def playerPlaneSpawnEvent = PLID ~ PID ~ planeArmament ~ position ~ IDS_UUID ~ LOGIN_UUID ~ NAME ~ TYPE ~ COUNTRY ~
+    FORM ~ FIELD ~ inairValue ~ PARENT ~ PAYLOAD ~ FUEL ~ SKIN ~ WM ^^ {
+    case plId ~ pid ~ arm ~ pos ~ ids ~ login ~ name ~ vType ~ cId ~ form ~ fid ~ inAir ~ parent ~ pl ~ fuel ~ skin ~ wm =>
+      PlayerPlaneSpawnEvent(plId, pid, arm, pos, ids, login, name, vType, cId, form, fid, inAir, parent, pl, fuel, skin, wm)
   }
 }
 
-trait LogEvent
-
-case class HitEvent(ammo:String, attackerId:Int, targetId:Int) extends LogEvent
-
-case class DamageEvent(damage:Double, attackerId:Int, targetId:Int, pos: Position) extends LogEvent
-
-case class KillEvent(attackerId:Int, targetId:Int, pos: Position) extends LogEvent
-
-case class PlayerAmmoEvent(playerId:Int, planeId:Int, bullets:Int, shells:Int, bombs:Int,  rockets:Int,  pos: Position) extends LogEvent
-
-case class MissionStartEvent(gameDate: LocalDate, gameTime: LocalTime, map: String, missionId: Option[Int]) extends LogEvent
-
-case class TimestampedEvent(time: Long, event: LogEvent)
-
-case class Position(x: Double, y: Double, z: Double)
-
-case class Area(positions: List[Position])
