@@ -35,7 +35,7 @@ class EventlogEventParsers extends JavaTokenParsers {
     override def apply(in: Input): ParseResult[String] = {
       val result = new StringBuilder()
       var rest = in
-      while(!rest.atEnd && !isSuccess(logItemId.apply(rest))) {
+      while(!(rest.atEnd || isSuccess(logItemId.apply(rest)))) {
         result.append(rest.first)
         rest = rest.rest
       }
@@ -85,9 +85,7 @@ class EventlogEventParsers extends JavaTokenParsers {
     _.toLong
   }
 
-  def event[T <: LogEvent](x: Int, p: => Parser[T]) = (eventTime <~ eventType(x)) ~ p ^^ {
-    case time ~ event => (time, event)
-  }
+  def eventN[T <: LogEvent](x: Int, p: => Parser[T]) = eventType(x) ~> p
 
   def gameDate = "GDate" ~ COLUMN ~> gameLocalDate
 
@@ -96,6 +94,8 @@ class EventlogEventParsers extends JavaTokenParsers {
   def missionFile = "MFile" ~ COLUMN ~> allCharsBeforeNextValue
 
   def intValue(key:String) = literal(key) ~ COLUMN ~> decimalNumber ^^ {_.toInt}
+
+  def doubleValue(key:String) = literal(key) ~ COLUMN ~> decimalNumber ^^ {_.toDouble}
 
   def stringValue(key:String) = literal(key) ~ COLUMN ~> allCharsBeforeNextValue
 
@@ -113,17 +113,61 @@ class EventlogEventParsers extends JavaTokenParsers {
 
   def aqmId = intValue("AQMID")
 
-  def missionStart = event(0, {
+  def aid = intValue("AID")
+
+  def tid = intValue("TID")
+  def plid = intValue("PLID")
+  def pid = intValue("PID")
+  def bul = intValue("BUL")
+  def sh = intValue("SH")
+  def bomb = intValue("BOMB")
+  def rct = intValue("RCT")
+
+  def ammo = stringValue("AMMO")
+
+  def damage = doubleValue("DMG")
+
+  def pos = "POS" ~> position
+
+  def someEvent = eventN(0, missionStart) | eventN(1, hitEvent) | eventN(2, damageEvent) | eventN(3, killEvent) |
+    eventN(4, playerAmmoEvent)
+
+  def event:Parser[(Long, LogEvent)] = eventTime ~ someEvent ^^ {
+    case time ~ e => (time, e)
+  }
+
+  def missionStart:Parser[LogEvent] =
     gameDate ~ gameTime ~ missionFile ~ missionId ~ gameType ~ counters ~ settingsFlags ~ mods ~ preset ~ aqmId ^^ {
       case date ~ time ~ map ~ mid ~ gameType ~ countryCounters ~ settingsFlags ~ mods ~ preset ~ aqmId =>
         MissionStartEvent(date, time, map, mid)
     }
-  })
+
+  def hitEvent = ammo ~ aid ~ tid ^^ {
+    case ammo ~ aid ~ tid => HitEvent(ammo, aid, tid)
+  }
+
+  def damageEvent = damage ~ aid ~ tid ~ pos ^^ {
+    case damage ~ aid ~ tid ~ pos => DamageEvent(damage, aid, tid, pos)
+  }
+
+  def killEvent = aid ~ tid ~ pos ^^ {
+    case aid ~ tid ~ pos => KillEvent(aid, tid, pos)
+  }
+
+  def playerAmmoEvent = plid ~ pid ~ bul ~ sh ~ bomb ~ rct ~ position ^^ {
+    case plid ~ pid ~ bul ~ sh ~ bomb ~ rct ~ position => PlayerAmmoEvent(plid, pid, bul, sh, bomb, rct, position)
+  }
 }
 
 trait LogEvent
 
-case class FakeEvent(gameDate: LocalDate, gameTime: LocalTime) extends LogEvent
+case class HitEvent(ammo:String, attackerId:Int, targetId:Int) extends LogEvent
+
+case class DamageEvent(damage:Double, attackerId:Int, targetId:Int, pos: Position) extends LogEvent
+
+case class KillEvent(attackerId:Int, targetId:Int, pos: Position) extends LogEvent
+
+case class PlayerAmmoEvent(playerId:Int, planeId:Int, bullets:Int, shells:Int, bombs:Int,  rockets:Int,  pos: Position) extends LogEvent
 
 case class MissionStartEvent(gameDate: LocalDate, gameTime: LocalTime, map: String, missionId: Option[Int]) extends LogEvent
 
