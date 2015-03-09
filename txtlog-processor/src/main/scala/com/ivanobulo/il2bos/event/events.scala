@@ -30,6 +30,8 @@ case class PlayerPlaneSpawnEvent(planeId: Int, playerId: Int, armament: PlaneArm
 
 case class GroupFormationEvent(groupId:Int, ids:List[Int], leaderId:Int) extends LogEvent
 
+case class SpawnEvent(id:Int, vehicleType:String, countryId: Int, name:String, playerId:Option[Int]) extends LogEvent
+
 case class PlaneArmament(bullets: Int, shells: Int, bombs: Int, rockets: Int)
 
 case class TimestampedEvent(time: Long, event: LogEvent)

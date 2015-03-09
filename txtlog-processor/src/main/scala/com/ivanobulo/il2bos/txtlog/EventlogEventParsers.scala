@@ -24,6 +24,7 @@ class EventlogEventParsers extends JavaTokenParsers {
 
   def allCharsBeforeNextValue:Parser[String] = until(logItemId)
 
+  // dirty backtracking to find everything before 'logItemId'
   def until(p: Parser[_]) = new Parser[String] {
     def isSuccess(result: ParseResult[_]) = result match {
       case f @ Failure(_,_) => false
@@ -98,6 +99,11 @@ class EventlogEventParsers extends JavaTokenParsers {
     case _ => true
   }
 
+  def optIntValue(key:String):Parser[Option[Int]] = literal(key) ~ COLUMN ~> ("-1" | decimalNumber) ^^ {
+    case "-1" => None
+    case x => Some(x.toInt)
+  }
+
   def missionId = "MID" ~ COLUMN ~> opt(decimalNumber) ^^ { _.map(_.toInt) }
   def counters = ("CNTRS" ~ COLUMN) ~> intMap
   def pos = "POS" ~> position
@@ -112,7 +118,9 @@ class EventlogEventParsers extends JavaTokenParsers {
   def AID = intValue("AID")
   def TID = intValue("TID")
   def PLID = intValue("PLID")
+  def ID = intValue("ID")
   def PID = intValue("PID")
+  def PID_OPT = optIntValue("PID")
   def BUL = intValue("BUL")
   def SH = intValue("SH")
   def BOMB = intValue("BOMB")
@@ -126,10 +134,7 @@ class EventlogEventParsers extends JavaTokenParsers {
   def DMG = doubleValue("DMG")
   def IDS_UUID =  uuidValue("IDS")
   def LOGIN_UUID =  uuidValue("LOGIN")
-  def PARENT =  "PARENT" ~ COLUMN ~> ("-1" | decimalNumber) ^^ {
-    case "-1" => None
-    case x => Some(x.toInt)
-  }
+  def PARENT =  optIntValue("PARENT")
   def PAYLOAD =  intValue("PAYLOAD")
   def FUEL =  doubleValue("FUEL")
   def WM =  intValue("WM")
@@ -140,7 +145,8 @@ class EventlogEventParsers extends JavaTokenParsers {
 
   def someEvent = eventN(0, missionStart) | eventN(1, hitEvent) | eventN(2, damageEvent) | eventN(3, killEvent) |
     eventN(4, playerAmmoEvent) | eventN(5, takeoffEvent) | eventN(6, landingEvent) | /*7*/missionEndEvent | /* todo 8 */
-    eventN(9, airfieldInfoEvent) | eventN(10, playerPlaneSpawnEvent) | eventN(11, groupFormationEvent)
+    eventN(9, airfieldInfoEvent) | eventN(10, playerPlaneSpawnEvent) | eventN(11, groupFormationEvent) |
+    eventN(12, spawnEvent)
 
   def event:Parser[(Long, LogEvent)] = eventTime ~ someEvent ^^ {
     case time ~ e => (time, e)
@@ -194,6 +200,10 @@ class EventlogEventParsers extends JavaTokenParsers {
 
   def groupFormationEvent = GID ~ IDS_LIST ~ LID ^^ {
     case groupId ~ ids ~ leaderId => GroupFormationEvent(groupId, ids, leaderId)
+  }
+
+  def spawnEvent = ID ~ TYPE ~ COUNTRY ~ NAME ~ PID_OPT ^^ {
+    case id ~ vType ~ countryId ~ name ~ pid => SpawnEvent(id, vType, countryId, name, pid)
   }
 }
 

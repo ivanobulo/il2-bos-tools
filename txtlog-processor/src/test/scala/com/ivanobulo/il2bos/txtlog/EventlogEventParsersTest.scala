@@ -144,5 +144,19 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
 
       parsers.event must succeedOn(eventString).withResult((1L, expectedEvent))
     }
+    "recognize bot spawn event" in {
+      val eventString = "T:16459 AType:12 ID:886784 TYPE:ZiS-6 BM-13 COUNTRY:101 NAME:Vehicle PID:-1"
+
+      val expectedEvent = SpawnEvent(886784, "ZiS-6 BM-13", 101, "Vehicle", None)
+
+      parsers.event must succeedOn(eventString).withResult((16459L, expectedEvent))
+    }
+    "recognize bot spawn event" in {
+      val eventString = "T:5 AType:12 ID:105471 TYPE:BotPilot_LaGG3 COUNTRY:101 NAME:BotPilot_LaGG3 PID:104447"
+
+      val expectedEvent = SpawnEvent(105471, "BotPilot_LaGG3", 101, "BotPilot_LaGG3", Some(104447))
+
+      parsers.event must succeedOn(eventString).withResult((5L, expectedEvent))
+    }
   }
 }
