@@ -28,15 +28,15 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
     }
   }
 
-  "listOfStrings" should {
+  "idList parser" should {
     "recognize empty lists" in {
-      parsers.listOfStrings must succeedOn("()").withResult(List[String]())
+      parsers.idList must succeedOn("").withResult(List[Int]())
     }
     "recognize one element lists" in {
-      parsers.listOfStrings must succeedOn("(abc)").withResult(List("abc"))
+      parsers.idList must succeedOn("1").withResult(List(1))
     }
     "recognize more than one element lists" in {
-      parsers.listOfStrings must succeedOn("(abc,cde)").withResult(List("abc", "cde"))
+      parsers.idList must succeedOn("10,20,30").withResult(List[Int](10,20,30))
     }
   }
 
@@ -136,6 +136,13 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
         Some("funkySkin.png"), 1)
 
       parsers.event must succeedOn(eventString).withResult((33969L, expectedEvent))
+    }
+    "recognize group formation event" in {
+      val eventString = "T:1 AType:11 GID:926720 IDS:532480,538624,547840,557056,563200,569344,575488 LID:532480"
+
+      val expectedEvent = GroupFormationEvent(926720, List(532480,538624,547840,557056,563200,569344,575488), 532480)
+
+      parsers.event must succeedOn(eventString).withResult((1L, expectedEvent))
     }
   }
 }

@@ -20,7 +20,7 @@ class EventlogEventParsers extends JavaTokenParsers {
 
   def coordinate = decimalNumber
 
-  def logItemId: Parser[String] = """[A-Z][A-Za-z]+:""".r
+  def logItemId: Parser[String] = """[A-Z][A-Za-z]*""".r <~ COLUMN
 
   def allCharsBeforeNextValue:Parser[String] = until(logItemId)
 
@@ -41,7 +41,9 @@ class EventlogEventParsers extends JavaTokenParsers {
     }
   }
 
-  def listOfStrings:Parser[List[String]] = LP ~> repsep(until(COMMA|RP), COMMA) <~ RP
+  def id = decimalNumber ^^ { _.toInt }
+
+  def idList = repsep(id, ",")
 
   def position = (LP ~> coordinate) ~ (COMMA ~> coordinate) ~ (COMMA ~> coordinate) <~ RP ^^ {
     case x ~ y ~ z => Position(x.toDouble, y.toDouble, z.toDouble)
@@ -132,10 +134,13 @@ class EventlogEventParsers extends JavaTokenParsers {
   def FUEL =  doubleValue("FUEL")
   def WM =  intValue("WM")
   def SKIN =  "SKIN" ~ COLUMN ~> opt(allCharsBeforeNextValue)
+  def IDS_LIST = "IDS"~ COLUMN ~> idList
+  def GID = intValue("GID")
+  def LID = intValue("LID")
 
   def someEvent = eventN(0, missionStart) | eventN(1, hitEvent) | eventN(2, damageEvent) | eventN(3, killEvent) |
     eventN(4, playerAmmoEvent) | eventN(5, takeoffEvent) | eventN(6, landingEvent) | /*7*/missionEndEvent | /* todo 8 */
-    eventN(9, airfieldInfoEvent) | eventN(10, playerPlaneSpawnEvent)
+    eventN(9, airfieldInfoEvent) | eventN(10, playerPlaneSpawnEvent) | eventN(11, groupFormationEvent)
 
   def event:Parser[(Long, LogEvent)] = eventTime ~ someEvent ^^ {
     case time ~ e => (time, e)
@@ -183,8 +188,12 @@ class EventlogEventParsers extends JavaTokenParsers {
 
   def playerPlaneSpawnEvent = PLID ~ PID ~ planeArmament ~ position ~ IDS_UUID ~ LOGIN_UUID ~ NAME ~ TYPE ~ COUNTRY ~
     FORM ~ FIELD ~ inairValue ~ PARENT ~ PAYLOAD ~ FUEL ~ SKIN ~ WM ^^ {
-    case plId ~ pid ~ arm ~ pos ~ ids ~ login ~ name ~ vType ~ cId ~ form ~ fid ~ inAir ~ parent ~ pl ~ fuel ~ skin ~ wm =>
-      PlayerPlaneSpawnEvent(plId, pid, arm, pos, ids, login, name, vType, cId, form, fid, inAir, parent, pl, fuel, skin, wm)
+    case plId ~ pid ~ arm ~ pos ~ nickUuid ~ loginUuid ~ nickname ~ vType ~ cId ~ form ~ fid ~ inAir ~ parent ~ pl ~ fuel ~ skin ~ wm =>
+      PlayerPlaneSpawnEvent(plId, pid, arm, pos, nickUuid, loginUuid, nickname, vType, cId, form, fid, inAir, parent, pl, fuel, skin, wm)
+  }
+
+  def groupFormationEvent = GID ~ IDS_LIST ~ LID ^^ {
+    case groupId ~ ids ~ leaderId => GroupFormationEvent(groupId, ids, leaderId)
   }
 }
 
