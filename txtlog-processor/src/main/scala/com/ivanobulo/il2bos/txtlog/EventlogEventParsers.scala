@@ -136,6 +136,8 @@ class EventlogEventParsers extends JavaTokenParsers {
   def DMG = doubleValue("DMG")
   def IDS_UUID =  uuidValue("IDS")
   def LOGIN_UUID =  uuidValue("LOGIN")
+  def USERID_UUID =  uuidValue("USERID")
+  def USERNICKID_UUID =  uuidValue("USERNICKID")
   def PARENT =  optIntValue("PARENT")
   def PAYLOAD =  intValue("PAYLOAD")
   def FUEL =  doubleValue("FUEL")
@@ -144,12 +146,17 @@ class EventlogEventParsers extends JavaTokenParsers {
   def IDS_LIST = "IDS"~ COLUMN ~> idList
   def GID = intValue("GID")
   def LID = intValue("LID")
+  def BOTID = intValue("BOTID")
+  def VER = intValue("VER")
   def ENABLED = booleanValue("ENABLED")
 
+  /* TODO Handle events 8, 18, 19. Doesn't seem important for now */
   def someEvent = eventN(0, missionStart) | eventN(1, hitEvent) | eventN(2, damageEvent) | eventN(3, killEvent) |
-    eventN(4, playerAmmoEvent) | eventN(5, takeoffEvent) | eventN(6, landingEvent) | /*7*/missionEndEvent | /* todo 8 */
+    eventN(4, playerAmmoEvent) | eventN(5, takeoffEvent) | eventN(6, landingEvent) | /*7*/missionEndEvent |
     eventN(9, airfieldInfoEvent) | eventN(10, playerPlaneSpawnEvent) | eventN(11, groupFormationEvent) |
-    eventN(12, spawnEvent) | eventN(13, influenceAreaInfo) | eventN(14, areaBoundaryInfo)
+    eventN(12, objectIdentificationEvent) | eventN(13, influenceAreaInfoEvent) | eventN(14, areaBoundaryInfoEvent) |
+    eventN(15, versionEvent) | eventN(16, botSpawnEvent) | eventN(20, playerIdentificationEvent) |
+    eventN(21, playerLeaveEvent)
 
   def event:Parser[(Long, LogEvent)] = eventTime ~ someEvent ^^ {
     case time ~ e => (time, e)
@@ -205,16 +212,32 @@ class EventlogEventParsers extends JavaTokenParsers {
     case groupId ~ ids ~ leaderId => GroupFormationEvent(groupId, ids, leaderId)
   }
 
-  def spawnEvent = ID ~ TYPE ~ COUNTRY ~ NAME ~ PID_OPT ^^ {
-    case id ~ vType ~ countryId ~ name ~ pid => SpawnEvent(id, vType, countryId, name, pid)
+  def objectIdentificationEvent = ID ~ TYPE ~ COUNTRY ~ NAME ~ PID_OPT ^^ {
+    case id ~ vType ~ countryId ~ name ~ pid => ObjectIdentificationEvent(id, vType, countryId, name, pid)
   }
 
-  def influenceAreaInfo = AID ~ COUNTRY ~ ENABLED ~ BC ^^ {
+  def influenceAreaInfoEvent = AID ~ COUNTRY ~ ENABLED ~ BC ^^ {
     case aid ~ countryId ~ enabled ~ bc => InfluenceAreaInfoEvent(aid, countryId, enabled, bc)
   }
 
-  def areaBoundaryInfo = AID ~ BP ^^ {
+  def areaBoundaryInfoEvent = AID ~ BP ^^ {
     case aid ~ bp => InfluenceAreaBoundaryEvent(aid, bp)
+  }
+
+  def versionEvent = VER ^^ {
+    case ver => VersionEvent(ver)
+  }
+
+  def botSpawnEvent = BOTID ~ pos ^^ {
+    case id ~ p => BotSpawnEvent(id, p)
+  }
+
+  def playerIdentificationEvent = USERID_UUID ~ USERNICKID_UUID ^^ {
+    case id ~ nickId => PlayerIdentificationEvent(id, nickId)
+  }
+
+  def playerLeaveEvent = USERID_UUID ~ USERNICKID_UUID ^^ {
+    case id ~ nickId => PlayerLeaveEvent(id, nickId)
   }
 }
 

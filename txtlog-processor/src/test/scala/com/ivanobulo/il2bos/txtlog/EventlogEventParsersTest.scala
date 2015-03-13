@@ -147,17 +147,17 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
 
       parsers.event must succeedOn(eventString).withResult((1L, expectedEvent))
     }
-    "recognize bot vehicle spawn event" in {
+    "recognize bot vehicle identification event" in {
       val eventString = "T:16459 AType:12 ID:886784 TYPE:ZiS-6 BM-13 COUNTRY:101 NAME:Vehicle PID:-1"
 
-      val expectedEvent = SpawnEvent(886784, "ZiS-6 BM-13", 101, "Vehicle", None)
+      val expectedEvent = ObjectIdentificationEvent(886784, "ZiS-6 BM-13", 101, "Vehicle", None)
 
       parsers.event must succeedOn(eventString).withResult((16459L, expectedEvent))
     }
-    "recognize bot spawn event" in {
+    "recognize bot pilot identification event" in {
       val eventString = "T:5 AType:12 ID:105471 TYPE:BotPilot_LaGG3 COUNTRY:101 NAME:BotPilot_LaGG3 PID:104447"
 
-      val expectedEvent = SpawnEvent(105471, "BotPilot_LaGG3", 101, "BotPilot_LaGG3", Some(104447))
+      val expectedEvent = ObjectIdentificationEvent(105471, "BotPilot_LaGG3", 101, "BotPilot_LaGG3", Some(104447))
 
       parsers.event must succeedOn(eventString).withResult((5L, expectedEvent))
     }
@@ -175,6 +175,38 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
         List((243.0,98.8,183.0),(230365.0,98.8,133.0),(230106.0,98.8,75641.0)))
 
       parsers.event must succeedOn(eventString).withResult((1L, expectedEvent))
+    }
+    "recognize version event" in {
+      val eventString ="T:1 AType:15 VER:17"
+
+      val expectedEvent = VersionEvent(17)
+
+      parsers.event must succeedOn(eventString).withResult((1L, expectedEvent))
+    }
+    "recognize bot spawn event" in {
+      val eventString ="T:28250 AType:16 BOTID:182273 POS(113655.180,129.202,243216.594)"
+
+      val expectedEvent = BotSpawnEvent(182273, (113655.180,129.202,243216.594))
+
+      parsers.event must succeedOn(eventString).withResult((28250L, expectedEvent))
+    }
+    "recognize player identification event" in {
+      val eventString ="T:0 AType:20 USERID:6898e2ef-c300-47e0-9159-47a43305b655 " +
+        "USERNICKID:b9539794-ccbf-426d-824f-f959da320d9d"
+
+      val expectedEvent =
+        PlayerIdentificationEvent("6898e2ef-c300-47e0-9159-47a43305b655", "b9539794-ccbf-426d-824f-f959da320d9d")
+
+      parsers.event must succeedOn(eventString).withResult((0L, expectedEvent))
+    }
+    "recognize player leave event" in {
+      val eventString ="T:17172 AType:21 USERID:bae844ef-dcf6-4a6f-b342-902c7f4a8e79" +
+        "USERNICKID:fda10ae6-3d93-4ea7-bab9-f1e967d203f2"
+
+      val expectedEvent =
+        PlayerLeaveEvent("bae844ef-dcf6-4a6f-b342-902c7f4a8e79", "fda10ae6-3d93-4ea7-bab9-f1e967d203f2")
+
+      parsers.event must succeedOn(eventString).withResult((17172L, expectedEvent))
     }
   }
 }
