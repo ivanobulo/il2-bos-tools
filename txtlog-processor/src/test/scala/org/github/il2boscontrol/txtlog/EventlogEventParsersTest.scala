@@ -1,11 +1,13 @@
-package com.ivanobulo.il2bos.txtlog
+package org.github.il2boscontrol.txtlog
 
 import java.time.{LocalDate, LocalTime}
 import java.util.UUID
 
-import com.ivanobulo.il2bos.event._
+import org.github.il2boscontrol.event._
 import org.specs2.matcher.ParserMatchers
 import org.specs2.mutable._
+
+import scala.language.implicitConversions
 
 class EventlogEventParsersTest extends Specification with ParserMatchers {
   override val parsers = new EventlogEventParsers()

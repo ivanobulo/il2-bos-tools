@@ -1,10 +1,10 @@
-package com.ivanobulo.il2bos.txtlog
+package org.github.il2boscontrol.txtlog
 
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalTime}
 import java.util.UUID
 
-import com.ivanobulo.il2bos.event._
+import org.github.il2boscontrol.event._
 
 import scala.util.parsing.combinator.JavaTokenParsers
 

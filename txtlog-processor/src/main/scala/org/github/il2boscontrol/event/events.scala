@@ -1,4 +1,4 @@
-package com.ivanobulo.il2bos.event
+package org.github.il2boscontrol.event
 
 import java.time.{LocalDate, LocalTime}
 import java.util.UUID
