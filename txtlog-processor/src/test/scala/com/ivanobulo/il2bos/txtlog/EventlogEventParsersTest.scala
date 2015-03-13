@@ -11,58 +11,61 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
   override val parsers = new EventlogEventParsers()
 
   implicit def stringToUUID(s:String): UUID = UUID.fromString(s)
+  implicit def tupleToPosition(x:(Double, Double, Double)): Position = Position.tupled(x)
 
-  "intMap" should {
-    "recognize maps" in {
-      parsers.intMap must succeedOn("2:1,3:2").withResult(Map((2, 1), (3, 2)))
+  "event parsers" should {
+    "intMap" should {
+      "recognize maps" in {
+        parsers.intMap must succeedOn("2:1,3:2").withResult(Map((2, 1), (3, 2)))
+      }
+    }
+
+    "booleanValue" should {
+      "translate boolean values properly" in {
+        parsers.booleanValue("BAR") must succeedOn("BAR:0").withResult(false)
+        parsers.booleanValue("FOO") must succeedOn("FOO:1").withResult(true)
+
+        parsers.booleanValue("FOO") must failOn("BAR:0")
+        parsers.booleanValue("TEST") must failOn("TEST:3")
+      }
+    }
+
+    "idList parser" should {
+      "recognize empty lists" in {
+        parsers.idList must succeedOn("").withResult(List[Int]())
+      }
+      "recognize one element lists" in {
+        parsers.idList must succeedOn("1").withResult(List(1))
+      }
+      "recognize more than one element lists" in {
+        parsers.idList must succeedOn("10,20,30").withResult(List[Int](10, 20, 30))
+      }
+    }
+
+    "eventTime" should {
+      "recognize 'T:123'" in {
+        parsers.eventTime must succeedOn("T:123").withResult(123L)
+      }
+    }
+
+    "eventType" should {
+      "match correct" in {
+        parsers.eventType(7) must succeedOn("AType:7").withResult(7)
+        parsers.eventType(0) must failOn("AType:7")
+      }
+    }
+
+    "PARENT" should {
+      "match numeric id" in {
+        parsers.PARENT must succeedOn("PARENT:321").withResult(Some(321))
+      }
+      "handle -1" in {
+        parsers.PARENT must succeedOn("PARENT:-1").withResult(None)
+      }
     }
   }
 
-  "booleanValue" should {
-    "translate boolean values properly" in {
-      parsers.booleanValue("BAR") must succeedOn("BAR:0").withResult(false)
-      parsers.booleanValue("FOO") must succeedOn("FOO:1").withResult(true)
-
-      parsers.booleanValue("FOO") must failOn("BAR:0")
-      parsers.booleanValue("TEST") must failOn("TEST:3")
-    }
-  }
-
-  "idList parser" should {
-    "recognize empty lists" in {
-      parsers.idList must succeedOn("").withResult(List[Int]())
-    }
-    "recognize one element lists" in {
-      parsers.idList must succeedOn("1").withResult(List(1))
-    }
-    "recognize more than one element lists" in {
-      parsers.idList must succeedOn("10,20,30").withResult(List[Int](10,20,30))
-    }
-  }
-
-  "eventTime" should {
-    "recognize 'T:123'" in {
-      parsers.eventTime must succeedOn("T:123").withResult(123L)
-    }
-  }
-
-  "eventType" should {
-    "match correct" in {
-      parsers.eventType(7) must succeedOn("AType:7").withResult(7)
-      parsers.eventType(0) must failOn("AType:7")
-    }
-  }
-
-  "PARENT" should {
-    "match numeric id" in {
-      parsers.PARENT must succeedOn("PARENT:321").withResult(Some(321))
-    }
-    "handle -1" in {
-      parsers.PARENT must succeedOn("PARENT:-1").withResult(None)
-    }
-  }
-
-  "event parser" should {
+  "event line parser" should {
     "recognize mission start event" in {
       val sourceLine =
         """T:122 AType:0 GDate:1942.12.24 GTime:14:55:3 MFile:Missions\_gen.msnbin MID: GType:702
@@ -144,7 +147,7 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
 
       parsers.event must succeedOn(eventString).withResult((1L, expectedEvent))
     }
-    "recognize bot spawn event" in {
+    "recognize bot vehicle spawn event" in {
       val eventString = "T:16459 AType:12 ID:886784 TYPE:ZiS-6 BM-13 COUNTRY:101 NAME:Vehicle PID:-1"
 
       val expectedEvent = SpawnEvent(886784, "ZiS-6 BM-13", 101, "Vehicle", None)
@@ -157,6 +160,21 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
       val expectedEvent = SpawnEvent(105471, "BotPilot_LaGG3", 101, "BotPilot_LaGG3", Some(104447))
 
       parsers.event must succeedOn(eventString).withResult((5L, expectedEvent))
+    }
+    "recognize area info event" in {
+      val eventString = "T:0 AType:13 AID:16384 COUNTRY:201 ENABLED:1 BC(3,2,1)"
+
+      val expectedEvent = InfluenceAreaInfoEvent(16384, 201, enabled = true, List(3,2,1))
+
+      parsers.event must succeedOn(eventString).withResult((0L, expectedEvent))
+    }
+    "recognize area boundary event" in {
+      val eventString ="T:1 AType:14 AID:16384 BP((243.0,98.8,183.0),(230365.0,98.8,133.0),(230106.0,98.8,75641.0))"
+
+      val expectedEvent = InfluenceAreaBoundaryEvent(16384,
+        List((243.0,98.8,183.0),(230365.0,98.8,133.0),(230106.0,98.8,75641.0)))
+
+      parsers.event must succeedOn(eventString).withResult((1L, expectedEvent))
     }
   }
 }

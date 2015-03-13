@@ -32,6 +32,10 @@ case class GroupFormationEvent(groupId:Int, ids:List[Int], leaderId:Int) extends
 
 case class SpawnEvent(id:Int, vehicleType:String, countryId: Int, name:String, playerId:Option[Int]) extends LogEvent
 
+case class InfluenceAreaInfoEvent(aid:Int, country:Int, enabled: Boolean, numberOfPlanes:List[Int]) extends LogEvent
+
+case class InfluenceAreaBoundaryEvent(aid:Int, vertices:List[Position]) extends LogEvent
+
 case class PlaneArmament(bullets: Int, shells: Int, bombs: Int, rockets: Int)
 
 case class TimestampedEvent(time: Long, event: LogEvent)

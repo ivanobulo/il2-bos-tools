@@ -108,6 +108,8 @@ class EventlogEventParsers extends JavaTokenParsers {
   def counters = ("CNTRS" ~ COLUMN) ~> intMap
   def pos = "POS" ~> position
   def inairValue = "INAIR" ~ COLUMN ~> "\\d".r ^^ { _.toInt }
+  def BC = "BC" ~ "(" ~> repsep(decimalNumber, ",") <~ ")" ^^ { _.map(_.toInt) }
+  def BP = "BP" ~ "(" ~> repsep(position, ",") <~ ")"
 
   // simple values
   def GType = intValue("GType")
@@ -142,11 +144,12 @@ class EventlogEventParsers extends JavaTokenParsers {
   def IDS_LIST = "IDS"~ COLUMN ~> idList
   def GID = intValue("GID")
   def LID = intValue("LID")
+  def ENABLED = booleanValue("ENABLED")
 
   def someEvent = eventN(0, missionStart) | eventN(1, hitEvent) | eventN(2, damageEvent) | eventN(3, killEvent) |
     eventN(4, playerAmmoEvent) | eventN(5, takeoffEvent) | eventN(6, landingEvent) | /*7*/missionEndEvent | /* todo 8 */
     eventN(9, airfieldInfoEvent) | eventN(10, playerPlaneSpawnEvent) | eventN(11, groupFormationEvent) |
-    eventN(12, spawnEvent)
+    eventN(12, spawnEvent) | eventN(13, influenceAreaInfo) | eventN(14, areaBoundaryInfo)
 
   def event:Parser[(Long, LogEvent)] = eventTime ~ someEvent ^^ {
     case time ~ e => (time, e)
@@ -204,6 +207,14 @@ class EventlogEventParsers extends JavaTokenParsers {
 
   def spawnEvent = ID ~ TYPE ~ COUNTRY ~ NAME ~ PID_OPT ^^ {
     case id ~ vType ~ countryId ~ name ~ pid => SpawnEvent(id, vType, countryId, name, pid)
+  }
+
+  def influenceAreaInfo = AID ~ COUNTRY ~ ENABLED ~ BC ^^ {
+    case aid ~ countryId ~ enabled ~ bc => InfluenceAreaInfoEvent(aid, countryId, enabled, bc)
+  }
+
+  def areaBoundaryInfo = AID ~ BP ^^ {
+    case aid ~ bp => InfluenceAreaBoundaryEvent(aid, bp)
   }
 }
 
