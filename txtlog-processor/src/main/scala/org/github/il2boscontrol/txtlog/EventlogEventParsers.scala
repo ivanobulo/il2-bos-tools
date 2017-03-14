@@ -8,7 +8,7 @@ import org.github.il2boscontrol.event._
 
 import scala.util.parsing.combinator.JavaTokenParsers
 
-class EventlogEventParsers extends JavaTokenParsers {
+object EventlogEventParsers extends JavaTokenParsers {
   lazy val gameDateFormat = DateTimeFormatter.ofPattern("yyyy.M.d")
   lazy val gameTimeFormat = DateTimeFormatter.ofPattern("HH:m:s")
 
@@ -56,13 +56,9 @@ class EventlogEventParsers extends JavaTokenParsers {
 
   def numericIdList: Parser[List[Long]] = rep1sep(numericId, COMMA)
 
-  def gameLocalDate: Parser[LocalDate] = allCharsBeforeNextValue ^^ {
-    case timeString => LocalDate.parse(timeString, gameDateFormat)
-  }
+  def gameLocalDate: Parser[LocalDate] = allCharsBeforeNextValue ^^ (timeString => LocalDate.parse(timeString, gameDateFormat))
 
-  def gameLocalTime: Parser[LocalTime] = allCharsBeforeNextValue ^^ {
-    case timeString => LocalTime.parse(timeString, gameTimeFormat)
-  }
+  def gameLocalTime: Parser[LocalTime] = allCharsBeforeNextValue ^^ (timeString => LocalTime.parse(timeString, gameTimeFormat))
 
   def uuid = allCharsBeforeNextValue ^^ { UUID.fromString }
 
@@ -70,9 +66,7 @@ class EventlogEventParsers extends JavaTokenParsers {
     case key ~ value => (key.toInt, value.toInt)
   }
 
-  def intMap = repsep(intKeyValue, COMMA) ^^ {
-    case list => list.toMap
-  }
+  def intMap = repsep(intKeyValue, COMMA) ^^ (_.toMap)
 
   def eventTime = ("T" ~ COLUMN) ~> decimalNumber ^^ { _.toLong }
 
@@ -162,7 +156,7 @@ class EventlogEventParsers extends JavaTokenParsers {
     case time ~ e => (time, e)
   }
 
-  def missionEndEvent:Parser[MissionEndEvent] = eventType(7) ^^ {case x => MissionEndEvent()}
+  def missionEndEvent:Parser[LogEvent] = eventType(7) ^^ (_ => MissionEndEvent)
 
   def missionStart:Parser[LogEvent] =
     gameDate ~ gameTime ~ missionFile ~ missionId ~ GType ~ counters ~ SETTS ~ MODS ~ PRESET ~ AQMID ^^ {
@@ -224,9 +218,7 @@ class EventlogEventParsers extends JavaTokenParsers {
     case aid ~ bp => InfluenceAreaBoundaryEvent(aid, bp)
   }
 
-  def versionEvent = VER ^^ {
-    case ver => VersionEvent(ver)
-  }
+  def versionEvent = VER ^^ VersionEvent
 
   def botSpawnEvent = BOTID ~ pos ^^ {
     case id ~ p => BotSpawnEvent(id, p)

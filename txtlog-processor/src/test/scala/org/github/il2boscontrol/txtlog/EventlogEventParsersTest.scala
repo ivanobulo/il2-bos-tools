@@ -8,7 +8,7 @@ import org.specs2.matcher.ParserMatchers
 import org.specs2.mutable._
 
 class EventlogEventParsersTest extends Specification with ParserMatchers {
-  override val parsers = new EventlogEventParsers()
+  override val parsers = EventlogEventParsers
 
   implicit def stringToUUID(s:String): UUID = UUID.fromString(s)
   implicit def tupleToPosition(x:(Double, Double, Double)): Position = Position.tupled(x)
@@ -106,7 +106,7 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
     "recognize mission end event" in {
       val eventString = "T:31598 AType:7"
       parsers.event must succeedOn(eventString)
-        .withResult((31598L, MissionEndEvent()))
+        .withResult((31598L, MissionEndEvent))
     }
     "recognize airfield info event" in {
       val eventString = "T:10 AType:9 AID:96256 COUNTRY:201 POS(133798.813, 82.420, 185350.141) IDS()"
