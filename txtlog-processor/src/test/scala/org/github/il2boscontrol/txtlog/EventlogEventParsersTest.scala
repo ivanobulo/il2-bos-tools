@@ -78,12 +78,12 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
     "recognize hit event" in {
       val eventString = "T:26455 AType:1 AMMO:BULLET_RUS_7-62x54_AP AID:311297 TID:454656"
       parsers.event must succeedOn(eventString)
-        .withResult((26455L, HitEvent("BULLET_RUS_7-62x54_AP", 311297, 454656)))
+        .withResult((26455L, HitEvent("BULLET_RUS_7-62x54_AP", Some(311297), 454656)))
     }
     "recognize damage event" in {
       val eventString = "T:26458 AType:2 DMG:0.030 AID:311297 TID:454656 POS(123603.250,145.485,242323.359)"
       parsers.event must succeedOn(eventString)
-        .withResult((26458L, DamageEvent(0.03, 311297, 454656, Position(123603.250, 145.485, 242323.359))))
+        .withResult((26458L, DamageEvent(0.03, Some(311297), 454656, Position(123603.250, 145.485, 242323.359))))
     }
     "recognize player ammo event" in {
       val eventString = "T:31598 AType:4 PLID:311297 PID:394241 BUL:1158 SH:10 BOMB:1 RCT:0 (124204.711,131.871,240163.422)"
@@ -150,14 +150,14 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
     "recognize bot vehicle identification event" in {
       val eventString = "T:16459 AType:12 ID:886784 TYPE:ZiS-6 BM-13 COUNTRY:101 NAME:Vehicle PID:-1"
 
-      val expectedEvent = ObjectIdentificationEvent(886784, "ZiS-6 BM-13", 101, "Vehicle", None)
+      val expectedEvent = ObjectIdentificationEvent(886784, "ZiS-6 BM-13", 101, Some("Vehicle"), None)
 
       parsers.event must succeedOn(eventString).withResult((16459L, expectedEvent))
     }
     "recognize bot pilot identification event" in {
       val eventString = "T:5 AType:12 ID:105471 TYPE:BotPilot_LaGG3 COUNTRY:101 NAME:BotPilot_LaGG3 PID:104447"
 
-      val expectedEvent = ObjectIdentificationEvent(105471, "BotPilot_LaGG3", 101, "BotPilot_LaGG3", Some(104447))
+      val expectedEvent = ObjectIdentificationEvent(105471, "BotPilot_LaGG3", 101, Some("BotPilot_LaGG3"), Some(104447))
 
       parsers.event must succeedOn(eventString).withResult((5L, expectedEvent))
     }
@@ -169,10 +169,10 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
       parsers.event must succeedOn(eventString).withResult((0L, expectedEvent))
     }
     "recognize area boundary event" in {
-      val eventString ="T:1 AType:14 AID:16384 BP((243.0,98.8,183.0),(230365.0,98.8,133.0),(230106.0,98.8,75641.0))"
+      val eventString ="T:1 AType:14 AID:16384 BP((243.0,98.8,183.0),(230365.0,98.8,133.0),(-230106.0,-98.8,-75641.0))"
 
       val expectedEvent = InfluenceAreaBoundaryEvent(16384,
-        List((243.0,98.8,183.0),(230365.0,98.8,133.0),(230106.0,98.8,75641.0)))
+        List((243.0,98.8,183.0),(230365.0,98.8,133.0),(-230106.0,-98.8,-75641.0)))
 
       parsers.event must succeedOn(eventString).withResult((1L, expectedEvent))
     }
@@ -207,6 +207,18 @@ class EventlogEventParsersTest extends Specification with ParserMatchers {
         PlayerLeaveEvent("bae844ef-dcf6-4a6f-b342-902c7f4a8e79", "fda10ae6-3d93-4ea7-bab9-f1e967d203f2")
 
       parsers.event must succeedOn(eventString).withResult((17172L, expectedEvent))
+    }
+    "parse events with missing name" in {
+      val eventString = "T:350225 AType:12 ID:224256 TYPE:noname COUNTRY:0 NAME: PID:-1"
+      val expectedEvent = ObjectIdentificationEvent(224256, "noname", 0, None, None)
+
+      parsers.event must succeedOn(eventString).withResult(350225L -> expectedEvent)
+    }
+    "parse self destruction event" in { // todo
+      val eventString = "T:154516 AType:3 AID:-1 TID:224256 POS(28436.160,366.505,25581.246)"
+      val expectedEvent = KillEvent(None, 224256, Position(28436.160d,366.505d,25581.246d))
+
+      parsers.event must succeedOn(eventString).withResult(154516 -> expectedEvent)
     }
   }
 }

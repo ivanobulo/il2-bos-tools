@@ -10,7 +10,7 @@ import scala.util.parsing.combinator.JavaTokenParsers
 
 object EventlogEventParsers extends JavaTokenParsers {
   lazy val gameDateFormat = DateTimeFormatter.ofPattern("yyyy.M.d")
-  lazy val gameTimeFormat = DateTimeFormatter.ofPattern("HH:m:s")
+  lazy val gameTimeFormat = DateTimeFormatter.ofPattern("H:m:s")
 
   // some literals
   def COMMA = ","
@@ -18,7 +18,7 @@ object EventlogEventParsers extends JavaTokenParsers {
   def LP = "("
   def RP = ")"
 
-  def coordinate = decimalNumber
+  def coordinate = floatingPointNumber
 
   def logItemId: Parser[String] = """[A-Z][A-Za-z]*""".r <~ COLUMN
 
@@ -88,6 +88,8 @@ object EventlogEventParsers extends JavaTokenParsers {
 
   def stringValue(key:String) = literal(key) ~ COLUMN ~> allCharsBeforeNextValue
 
+  def optStringValue(key:String):Parser[Option[String]] = literal(key) ~ COLUMN ~> opt(allCharsBeforeNextValue)
+
   def booleanValue(key:String) = literal(key) ~ COLUMN ~> ("0" | "1") ^^ {
     case "0" => false
     case _ => true
@@ -112,6 +114,7 @@ object EventlogEventParsers extends JavaTokenParsers {
   def SETTS = stringValue("SETTS")
   def AQMID = intValue("AQMID")
   def AID = intValue("AID")
+  def AID_OPT = optIntValue("AID")
   def TID = intValue("TID")
   def PLID = intValue("PLID")
   def ID = intValue("ID")
@@ -124,6 +127,7 @@ object EventlogEventParsers extends JavaTokenParsers {
   def COUNTRY = intValue("COUNTRY")
   def AMMO = stringValue("AMMO")
   def NAME = stringValue("NAME")
+  def NAME_OPT = optStringValue("NAME")
   def TYPE = stringValue("TYPE")
   def FORM = intValue("FORM")
   def FIELD = intValue("FIELD")
@@ -164,15 +168,15 @@ object EventlogEventParsers extends JavaTokenParsers {
         MissionStartEvent(date, time, map, mid)
     }
 
-  def hitEvent = AMMO ~ AID ~ TID ^^ {
+  def hitEvent = AMMO ~ AID_OPT ~ TID ^^ {
     case ammo ~ aid ~ tid => HitEvent(ammo, aid, tid)
   }
 
-  def damageEvent = DMG ~ AID ~ TID ~ pos ^^ {
+  def damageEvent = DMG ~ AID_OPT ~ TID ~ pos ^^ {
     case damage ~ aid ~ tid ~ pos => DamageEvent(damage, aid, tid, pos)
   }
 
-  def killEvent = AID ~ TID ~ pos ^^ {
+  def killEvent = AID_OPT ~ TID ~ pos ^^ {
     case aid ~ tid ~ pos => KillEvent(aid, tid, pos)
   }
 
@@ -206,7 +210,7 @@ object EventlogEventParsers extends JavaTokenParsers {
     case groupId ~ ids ~ leaderId => GroupFormationEvent(groupId, ids, leaderId)
   }
 
-  def objectIdentificationEvent = ID ~ TYPE ~ COUNTRY ~ NAME ~ PID_OPT ^^ {
+  def objectIdentificationEvent = ID ~ TYPE ~ COUNTRY ~ NAME_OPT ~ PID_OPT ^^ {
     case id ~ vType ~ countryId ~ name ~ pid => ObjectIdentificationEvent(id, vType, countryId, name, pid)
   }
 

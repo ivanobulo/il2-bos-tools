@@ -7,11 +7,11 @@ trait LogEvent
 
 object MissionEndEvent extends LogEvent
 
-case class HitEvent(ammo: String, attackerId: Int, targetId: Int) extends LogEvent
+case class HitEvent(ammo: String, attackerId: Option[Int], targetId: Int) extends LogEvent
 
-case class DamageEvent(damage: Double, attackerId: Int, targetId: Int, pos: Position) extends LogEvent
+case class DamageEvent(damage: Double, attackerId: Option[Int], targetId: Int, pos: Position) extends LogEvent
 
-case class KillEvent(attackerId: Int, targetId: Int, pos: Position) extends LogEvent
+case class KillEvent(attackerId: Option[Int], targetId: Int, pos: Position) extends LogEvent
 
 case class PlayerAmmoEvent(playerId: Int, planeId: Int, planeArmament: PlaneArmament, pos: Position) extends LogEvent
 
@@ -30,7 +30,7 @@ case class PlayerPlaneSpawnEvent(planeId: Int, playerId: Int, armament: PlaneArm
 
 case class GroupFormationEvent(groupId: Int, ids: List[Int], leaderId: Int) extends LogEvent
 
-case class ObjectIdentificationEvent(id: Int, vehicleType: String, countryId: Int, name: String, playerId: Option[Int]) extends LogEvent
+case class ObjectIdentificationEvent(id: Int, vehicleType: String, countryId: Int, name: Option[String], playerId: Option[Int]) extends LogEvent
 
 case class PlayerIdentificationEvent(loginId: UUID, nickId: UUID) extends LogEvent
 
