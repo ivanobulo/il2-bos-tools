@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 ### Intellij ###
 .idea/**/*.*
@@ -6,11 +7,29 @@
 # Simple Build Tool
 # http://www.scala-sbt.org/release/docs/Getting-Started/Directories.html#configuring-version-control
 
+=======
+*.class
+*.log
+
+# sbt specific
+.cache
+.history
+.lib/
+dist/*
+>>>>>>> bf447dd154d83ec9e905c6e8f5489864024939b0
 target/
 lib_managed/
 src_managed/
 project/boot/
+<<<<<<< HEAD
 .history
 .cache
 
 # End of https://www.gitignore.io/api/intellij,sbt
+=======
+project/plugins/project/
+
+# Scala-IDE specific
+.scala_dependencies
+.worksheet
+>>>>>>> bf447dd154d83ec9e905c6e8f5489864024939b0
