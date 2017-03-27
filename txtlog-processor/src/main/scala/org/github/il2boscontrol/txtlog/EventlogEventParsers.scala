@@ -137,6 +137,7 @@ object EventlogEventParsers extends JavaTokenParsers {
   def USERID_UUID =  uuidValue("USERID")
   def USERNICKID_UUID =  uuidValue("USERNICKID")
   def PARENT =  optIntValue("PARENT")
+  def PARENTID =  optIntValue("PARENTID")
   def PAYLOAD =  intValue("PAYLOAD")
   def FUEL =  doubleValue("FUEL")
   def WM =  intValue("WM")
@@ -147,14 +148,16 @@ object EventlogEventParsers extends JavaTokenParsers {
   def BOTID = intValue("BOTID")
   def VER = intValue("VER")
   def ENABLED = booleanValue("ENABLED")
+  def OBJID = "OBJID" ~ COLUMN ~> id ~ pos
 
   /* TODO Handle events 8, 18, 19. Doesn't seem important for now */
   def someEvent = eventN(0, missionStart) | eventN(1, hitEvent) | eventN(2, damageEvent) | eventN(3, killEvent) |
     eventN(4, playerAmmoEvent) | eventN(5, takeoffEvent) | eventN(6, landingEvent) | /*7*/missionEndEvent |
+    eventN(8, missionObjectiveEvent) |
     eventN(9, airfieldInfoEvent) | eventN(10, playerPlaneSpawnEvent) | eventN(11, groupFormationEvent) |
     eventN(12, objectIdentificationEvent) | eventN(13, influenceAreaInfoEvent) | eventN(14, areaBoundaryInfoEvent) |
-    eventN(15, versionEvent) | eventN(16, botSpawnEvent) | eventN(20, playerIdentificationEvent) |
-    eventN(21, playerLeaveEvent)
+    eventN(15, versionEvent) | eventN(16, botSpawnEvent) |eventN(18, botEjectEvent) |
+    eventN(20, playerIdentificationEvent) | eventN(21, playerLeaveEvent)
 
   def event:Parser[(Long, LogEvent)] = eventTime ~ someEvent ^^ {
     case time ~ e => (time, e)
@@ -192,6 +195,14 @@ object EventlogEventParsers extends JavaTokenParsers {
     case aid ~ country ~ pos => AirFieldInfoEvent(aid, country, pos)
   }
 
+  def iconType = intValue("ICTYPE")
+
+  def coalition = "COAL" ~ COLUMN ~> id
+
+  def missionObjectiveEvent = (OBJID ~ coalition ~ intValue("TYPE") ~ booleanValue("RES")) ~ iconType ^^ {
+    case (id ~ position) ~ coalition ~ objectiveType ~ isCompleted ~ iconType => MissionObjectiveEvent(id, position, coalition, objectiveType, isCompleted, iconType)
+  }
+
   def planeArmament = BUL ~ SH ~ BOMB ~ RCT ^^ {
     case bul ~ sh ~ bomb ~ rct => PlaneArmament(bul, sh, bomb, rct)
   }
@@ -225,7 +236,11 @@ object EventlogEventParsers extends JavaTokenParsers {
   def versionEvent = VER ^^ VersionEvent
 
   def botSpawnEvent = BOTID ~ pos ^^ {
-    case id ~ p => BotSpawnEvent(id, p)
+    case id ~ p => BotSpawnEvent(id, None, p)
+  }
+
+  def botEjectEvent = BOTID ~ PARENTID ~ pos ^^ {
+    case id ~ parentId ~ p => BotEjectEvent(id, parentId, p)
   }
 
   def playerIdentificationEvent = USERID_UUID ~ USERNICKID_UUID ^^ {

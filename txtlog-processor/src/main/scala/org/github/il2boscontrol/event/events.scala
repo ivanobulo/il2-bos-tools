@@ -23,6 +23,9 @@ case class AirFieldInfoEvent(airfieldId: Int, countryId: Int, pos: Position) ext
 
 case class MissionStartEvent(gameDate: LocalDate, gameTime: LocalTime, map: String, missionId: Option[Int]) extends LogEvent
 
+case class MissionObjectiveEvent(id: Int, position: Position, coalition: Int, objectiveType: Int,
+                                 isCompleted: Boolean, iconType: Int) extends LogEvent
+
 case class PlayerPlaneSpawnEvent(planeId: Int, playerId: Int, armament: PlaneArmament, position: Position, nickId: UUID,
                                  loginId: UUID, playerNickname: String, vehicleType: String, countryId: Int, form: Int,
                                  fieldId: Int, inAir: Int, parent: Option[Int], payload: Int, fuel: Double,
@@ -42,7 +45,9 @@ case class InfluenceAreaBoundaryEvent(aid: Int, vertices: List[Position]) extend
 
 case class VersionEvent(version: Int) extends LogEvent
 
-case class BotSpawnEvent(botId: Int, pos: Position) extends LogEvent
+case class BotSpawnEvent(botId: Int, parentId: Option[Int], pos: Position) extends LogEvent
+
+case class BotEjectEvent(botId: Int, parentId: Option[Int], pos: Position) extends LogEvent
 
 case class PlaneArmament(bullets: Int, shells: Int, bombs: Int, rockets: Int)
 
